@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/btrfssnap/settings"
+  title: _("Btrfs Snap Settings")
+  editing: true
+  notificationTitle: _("BTRFS snapshot settings updated.")
+  component: omv-services-btrfssnap-settings-form-page

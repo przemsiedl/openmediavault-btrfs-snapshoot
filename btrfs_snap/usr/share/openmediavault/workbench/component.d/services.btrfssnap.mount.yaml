@@ -1,0 +1,44 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-btrfssnap-mount-form-page
+  type: formPage
+  config:
+    request:
+      service: BtrfsSnap
+      post:
+        method: mountSnapshot
+        progressMessage: _("Mounting snapshot...")
+    fields:
+      - type: paragraph
+        title: _("Mounting - {{ _routeQueryParams.snapshot_name }}")
+        text: _("Select the target directory to mount the selected snapshot.")
+      - type: textInput
+        name: snapshot_name
+        label: _("Snapshot")
+        value: "{{ _routeQueryParams.snapshot_name }}"
+        readonly: true
+        submitValue: false
+      - type: hidden
+        name: snapshot_path
+        value: "{{ _routeQueryParams.snapshot_path }}"
+      - type: hidden
+        name: root_mntent_uuid
+        value: "{{ _routeQueryParams.root_mntent_uuid }}"
+      - type: folderBrowser
+        name: mount_path
+        label: _("Mount directory")
+        dirType: mntent
+        dirRefIdField: root_mntent_uuid
+        value: "srv"
+        validators:
+          required: true
+    buttons:
+      - template: submit
+        execute:
+          type: url
+          url: "/services/btrfssnap"
+      - template: cancel
+        execute:
+          type: url
+          url: "/services/btrfssnap"

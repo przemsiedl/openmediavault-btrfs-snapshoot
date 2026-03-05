@@ -1,0 +1,33 @@
+#!/bin/bash
+
+set -eu
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "${SCRIPT_DIR}/btrfssnap_common"
+
+[ "$#" -eq 0 ] || fail "Usage: btrfssnap_list"
+
+btrfs_root="$(read_configured_root)"
+
+btrfs subvolume list "${btrfs_root}" 2>/dev/null | while IFS= read -r line; do
+    relative_path="$(echo "${line}" | sed -n 's/^.* path //p')"
+    [ -n "${relative_path}" ] || continue
+    relative_path="${relative_path#/}"
+    name="$(basename "${relative_path}")"
+    if ! is_managed_snapshot_name "${name}"; then
+        continue
+    fi
+
+    targets="$(
+        get_snapshot_mount_targets "${btrfs_root}" "${relative_path}" \
+            | awk '!seen[$0]++' \
+            | awk 'BEGIN { first = 1 } { if (!first) printf(", "); printf("%s", $0); first = 0 } END { print "" }'
+    )"
+    if [ -n "${targets}" ]; then
+        is_mounted="1"
+    else
+        is_mounted="0"
+    fi
+
+    printf '%s\t%s\t%s\t%s\n' "${name}" "${relative_path}" "${is_mounted}" "${targets}"
+done

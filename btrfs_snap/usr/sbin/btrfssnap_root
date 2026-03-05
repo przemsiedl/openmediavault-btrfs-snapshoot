@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -eu
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "${SCRIPT_DIR}/btrfssnap_common"
+
+usage() {
+    echo "Usage: btrfssnap_root get|set <absolute_path>" >&2
+    exit 1
+}
+
+cmd="${1:-}"
+case "${cmd}" in
+    get)
+        [ "$#" -eq 1 ] || usage
+        read_configured_root
+        ;;
+    set)
+        [ "$#" -eq 2 ] || usage
+        root_path="$(normalize_absolute_path "${2}")"
+        [ -d "${root_path}" ] || fail "Selected directory does not exist: ${root_path}"
+        write_configured_root "${root_path}"
+        echo "${root_path}"
+        ;;
+    *)
+        usage
+        ;;
+esac

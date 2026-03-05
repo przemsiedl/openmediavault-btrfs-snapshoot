@@ -1,0 +1,12 @@
+version: "1.0"
+type: navigation-item
+data:
+  id: services.btrfssnap
+  path: "services.btrfssnap"
+  text: _("BTRFS Snap")
+  icon: "mdi:camera"
+  url: "/services/btrfssnap"
+  position: 90
+  permissions:
+    role:
+      - admin

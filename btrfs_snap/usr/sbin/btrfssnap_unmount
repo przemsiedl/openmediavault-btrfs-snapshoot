@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -eu
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "${SCRIPT_DIR}/btrfssnap_common"
+
+[ "$#" -eq 1 ] || fail "Usage: btrfssnap_unmount <snapshot_path>"
+
+snapshot_path="$(validate_managed_snapshot_path "${1}")"
+btrfs_root="$(read_configured_root)"
+
+targets="$(get_snapshot_mount_targets "${btrfs_root}" "${snapshot_path}" | awk '!seen[$0]++')"
+[ -n "${targets}" ] || fail "Snapshot is not mounted."
+
+unmounted=0
+while IFS= read -r target; do
+    [ -n "${target}" ] || continue
+    if ! mountpoint -q "${target}" 2>/dev/null; then
+        continue
+    fi
+    if umount "${target}" 2>/dev/null; then
+        unmounted=$((unmounted + 1))
+        continue
+    fi
+    fail "Failed to unmount '${target}'."
+done < <(printf '%s\n' "${targets}" | awk '{ print length, $0 }' | sort -rn | cut -d' ' -f2-)
+
+echo "${unmounted}"

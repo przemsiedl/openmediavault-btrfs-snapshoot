@@ -1,0 +1,48 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-btrfssnap-settings-form-page
+  type: formPage
+  config:
+    request:
+      service: BtrfsSnap
+      get:
+        method: getSettings
+      post:
+        method: setSettings
+    fields:
+      - type: paragraph
+        title: _("BTRFS mount root")
+        text: _("Select the directory from filesystem root (/). The default selection is /srv when no value is configured.")
+      - type: hidden
+        name: root_mntent_uuid
+      - type: folderBrowser
+        name: path
+        label: _("Mount root path")
+        dirType: mntent
+        dirRefIdField: root_mntent_uuid
+        value: "srv"
+        validators:
+          required: true
+      - type: textInput
+        name: configured_btrfs_root
+        label: _("Currently configured path (from config file)")
+        readonly: true
+        submitValue: false
+        hint: _("This value is read directly from /etc/openmediavault/btrfssnap.conf.")
+      - type: textInput
+        name: retention_limit
+        label: _("Snapshot retention limit")
+        hint: _("Maximum number of auto-created snapshots to keep.")
+        value: 100
+        validators:
+          required: true
+    buttons:
+      - template: submit
+        execute:
+          type: url
+          url: "/services/btrfssnap"
+      - template: cancel
+        execute:
+          type: url
+          url: "/services/btrfssnap"

@@ -1,0 +1,7 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/btrfssnap"
+  title: _("BTRFS Snap")
+  component: omv-services-btrfssnap-datatable
+

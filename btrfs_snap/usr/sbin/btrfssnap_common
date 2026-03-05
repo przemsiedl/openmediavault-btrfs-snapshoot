@@ -1,0 +1,200 @@
+#!/bin/bash
+
+set -u
+
+CONFIG_FILE="/etc/openmediavault/btrfssnap.conf"
+DEFAULT_RETENTION_LIMIT=100
+
+fail() {
+    echo "$*" >&2
+    exit 1
+}
+
+normalize_absolute_path() {
+    local input="${1:-}"
+    input="$(echo "${input}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "${input}" ] || fail "Path is required."
+    [[ "${input}" != *".."* ]] || fail "Invalid path."
+    input="${input//\\//}"
+    [[ "${input}" = /* ]] || fail "Path must be absolute and start with '/'."
+    if [ "${input}" != "/" ]; then
+        input="${input%/}"
+    fi
+    [ -n "${input}" ] || input="/"
+    printf '%s\n' "${input}"
+}
+
+normalize_root_relative_path() {
+    local input="${1:-}"
+    input="$(echo "${input}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [[ "${input}" != *".."* ]] || fail "Invalid path."
+    input="${input//\\//}"
+    input="${input#/}"
+    input="${input%/}"
+    [ -n "${input}" ] || fail "Path '/' is not allowed."
+    printf '%s\n' "${input}"
+}
+
+normalize_snapshot_relative_path() {
+    local input="${1:-}"
+    input="$(echo "${input}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [ -n "${input}" ] || fail "Snapshot path is required."
+    [[ "${input}" != *".."* ]] || fail "Invalid snapshot path."
+    input="${input#/}"
+    [ -n "${input}" ] || fail "Snapshot path is required."
+    printf '%s\n' "${input}"
+}
+
+is_managed_snapshot_name() {
+    local name="${1:-}"
+    [[ "${name}" =~ ^v[0-9]{8}-[0-9]{4}$ ]]
+}
+
+validate_managed_snapshot_path() {
+    local snapshot_path="${1:-}"
+    snapshot_path="$(normalize_snapshot_relative_path "${snapshot_path}")"
+    local snapshot_name
+    snapshot_name="$(basename "${snapshot_path}")"
+    is_managed_snapshot_name "${snapshot_name}" || fail "Snapshot is not managed by this plugin: ${snapshot_path}"
+    printf '%s\n' "${snapshot_path}"
+}
+
+normalize_retention_limit() {
+    local input="${1:-}"
+    input="$(echo "${input}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+    [[ "${input}" =~ ^[0-9]+$ ]] || fail "Retention limit must be a positive integer."
+    [ "${input}" -ge 1 ] || fail "Retention limit must be greater than 0."
+    printf '%s\n' "${input}"
+}
+
+get_config_value_raw() {
+    local key="${1:-}"
+    [ -n "${key}" ] || return 0
+    [ -r "${CONFIG_FILE}" ] || return 0
+    while IFS= read -r line || [ -n "${line}" ]; do
+        line="$(echo "${line}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [ -n "${line}" ] || continue
+        [[ "${line}" = \#* ]] && continue
+        case "${line}" in
+            "${key}"=*)
+                printf '%s\n' "${line#${key}=}"
+                return 0
+                ;;
+        esac
+    done < "${CONFIG_FILE}"
+}
+
+get_configured_root_raw() {
+    get_config_value_raw "BTRFS_ROOT"
+}
+
+get_configured_retention_raw() {
+    local retention
+    retention="$(get_config_value_raw "RETENTION_LIMIT")"
+    if [ -z "${retention}" ]; then
+        retention="${DEFAULT_RETENTION_LIMIT}"
+    fi
+    printf '%s\n' "${retention}"
+}
+
+write_plugin_config() {
+    local root="${1:-}"
+    local retention="${2:-}"
+    local dir
+    dir="$(dirname "${CONFIG_FILE}")"
+    [ -d "${dir}" ] || mkdir -p "${dir}" || fail "Failed to create configuration directory: ${dir}"
+    {
+        echo "# openmediavault-btrfs-snap plugin configuration."
+        echo "# Root directory of BTRFS filesystem used for snapshot listing."
+        echo "BTRFS_ROOT=${root}"
+        echo "# Retention limit for auto-created snapshots."
+        echo "RETENTION_LIMIT=${retention}"
+        echo ""
+    } > "${CONFIG_FILE}" || fail "Failed to write plugin configuration."
+}
+
+read_configured_root() {
+    local root
+    root="$(get_configured_root_raw)"
+    [ -n "${root}" ] || fail "BTRFS root path is not configured."
+    normalize_absolute_path "${root}"
+}
+
+read_configured_retention() {
+    local retention
+    retention="$(get_configured_retention_raw)"
+    normalize_retention_limit "${retention}"
+}
+
+write_configured_root() {
+    local root="${1:-}"
+    local retention
+    root="$(normalize_absolute_path "${root}")"
+    retention="$(read_configured_retention)"
+    write_plugin_config "${root}" "${retention}"
+}
+
+write_configured_retention() {
+    local retention="${1:-}"
+    local root
+    retention="$(normalize_retention_limit "${retention}")"
+    root="$(get_configured_root_raw)"
+    if [ -n "${root}" ]; then
+        root="$(normalize_absolute_path "${root}")"
+    fi
+    write_plugin_config "${root}" "${retention}"
+}
+
+get_btrfs_device_for_root() {
+    local btrfs_root="${1:-}"
+    local device
+    device="$(findmnt -rn -T "${btrfs_root}" -o SOURCE 2>/dev/null | sed -n '1p')"
+    [ -n "${device}" ] || fail "Failed to detect BTRFS source device."
+    device="$(echo "${device}" | sed -E 's/^(.+)\[[^]]+\]$/\1/')"
+    printf '%s\n' "${device}"
+}
+
+get_mount_targets_for_source() {
+    local source_path="${1:-}"
+    findmnt -rn -S "${source_path}" -o TARGET 2>/dev/null | sed '/^[[:space:]]*$/d'
+}
+
+get_mount_targets_for_subvolume() {
+    local device="${1:-}"
+    local relative_path="${2:-}"
+    [ -n "${device}" ] || return 0
+    local needle_a="subvol=/${relative_path}"
+    local needle_b="subvol=${relative_path}"
+    findmnt -rn -t btrfs -S "${device}" -o TARGET,OPTIONS 2>/dev/null | while IFS= read -r line; do
+        [ -n "${line}" ] || continue
+        local target="${line%%[[:space:]]*}"
+        local options="${line#*[[:space:]]}"
+        [ -n "${target}" ] || continue
+        [ -n "${options}" ] || continue
+        if [[ "${options}" == *"${needle_a}"* ]] || [[ "${options}" == *"${needle_b}"* ]]; then
+            printf '%s\n' "${target}"
+        fi
+    done
+}
+
+get_snapshot_mount_targets() {
+    local btrfs_root="${1:-}"
+    local relative_path="${2:-}"
+    local source_path="${btrfs_root}/${relative_path}"
+    get_mount_targets_for_source "${source_path}"
+    local device
+    device="$(get_btrfs_device_for_root "${btrfs_root}" 2>/dev/null)" || return 0
+    get_mount_targets_for_subvolume "${device}" "${relative_path}"
+}
+
+snapshot_exists_in_list() {
+    local btrfs_root="${1:-}"
+    local snapshot_path="${2:-}"
+    btrfs subvolume list "${btrfs_root}" 2>/dev/null | sed -n 's/^.* path //p' | while IFS= read -r p; do
+        p="${p#/}"
+        if [ "${p}" = "${snapshot_path}" ]; then
+            printf '1\n'
+            return 0
+        fi
+    done
+}

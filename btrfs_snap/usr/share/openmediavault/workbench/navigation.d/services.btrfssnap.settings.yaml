@@ -1,0 +1,12 @@
+version: "1.0"
+type: navigation-item
+data:
+  id: services.btrfssnap.settings
+  path: "services.btrfssnap.settings"
+  text: _("Settings")
+  icon: settings
+  url: "/services/btrfssnap/settings"
+  position: 91
+  permissions:
+    role:
+      - admin

@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/btrfssnap/mount"
+  title: _("Mount")
+  editing: true
+  notificationTitle: _("Snapshot mounted.")
+  component: omv-services-btrfssnap-mount-form-page

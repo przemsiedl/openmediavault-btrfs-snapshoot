@@ -1,0 +1,40 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-btrfssnap-unmount-form-page
+  type: formPage
+  config:
+    request:
+      service: BtrfsSnap
+      post:
+        method: unmountSnapshot
+        progressMessage: _("Unmounting snapshot...")
+    fields:
+      - type: paragraph
+        title: _("Unmounting - {{ _routeQueryParams.snapshot_name }}")
+        text: _("Unmount all mountpoints of the selected snapshot.")
+      - type: textInput
+        name: snapshot_name
+        label: _("Snapshot")
+        value: "{{ _routeQueryParams.snapshot_name }}"
+        readonly: true
+        submitValue: false
+      - type: textInput
+        name: mount_dir
+        label: _("Current mount directory")
+        value: "{{ _routeQueryParams.mount_dir }}"
+        readonly: true
+        submitValue: false
+      - type: hidden
+        name: snapshot_path
+        value: "{{ _routeQueryParams.snapshot_path }}"
+    buttons:
+      - template: cancel
+        execute:
+          type: url
+          url: "/services/btrfssnap"
+      - template: submit
+        text: _("Unmount")
+        execute:
+          type: url
+          url: "/services/btrfssnap"

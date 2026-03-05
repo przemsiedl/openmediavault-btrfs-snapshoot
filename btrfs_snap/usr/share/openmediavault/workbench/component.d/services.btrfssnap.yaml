@@ -1,0 +1,75 @@
+version: "1.0"
+type: component
+data:
+  name: omv-services-btrfssnap-datatable
+  type: datatablePage
+  config:
+    stateId: "6f1b3e50-1b1e-11ee-be56-0242ac120002"
+    title: _("BTRFS Snap")
+    subTitle: _("BTRFS snapshot list")
+    columns:
+      - name: _("Snapshot name")
+        prop: name
+        flexGrow: 1
+        sortable: true
+      - name: _("Subvolume path")
+        prop: path
+        flexGrow: 2
+        sortable: true
+      - name: _("Mounted")
+        prop: is_mounted
+        cellTemplateName: checkIcon
+        sortable: true
+      - name: _("Mount directory")
+        prop: mount_dir
+        cellTemplateName: placeholder
+        flexGrow: 2
+        sortable: false
+    store:
+      proxy:
+        service: BtrfsSnap
+        get:
+          method: getSnapshotList
+    sorters:
+      - dir: desc
+        prop: name
+    selectionType: single
+    actions:
+      - type: iconButton
+        icon: "mdi:camera-plus"
+        tooltip: _("Create snapshot")
+        execute:
+          type: url
+          url: "/services/btrfssnap/create"
+      - type: iconButton
+        icon: link
+        tooltip: _("Mount snapshot")
+        enabledConstraints:
+          minSelected: 1
+          maxSelected: 1
+          constraint:
+            - operator: falsy
+              arg0:
+                prop: is_mounted
+        execute:
+          type: url
+          url: "/services/btrfssnap/mount?snapshot_name={{ name }}&snapshot_path={{ path }}&root_mntent_uuid={{ root_mntent_uuid }}"
+      - type: iconButton
+        icon: "mdi:link-off"
+        tooltip: _("Unmount snapshot")
+        enabledConstraints:
+          minSelected: 1
+          maxSelected: 1
+          constraint:
+            - operator: truthy
+              arg0:
+                prop: is_mounted
+        execute:
+          type: url
+          url: "/services/btrfssnap/unmount?snapshot_name={{ name }}&snapshot_path={{ path }}&mount_dir={{ mount_dir }}"
+      - type: iconButton
+        icon: settings
+        tooltip: _("Snapshot root path settings")
+        execute:
+          type: url
+          url: "/services/btrfssnap/settings"

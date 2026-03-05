@@ -1,0 +1,12 @@
+Source: openmediavault-btrfs-snap
+Section: net
+Priority: optional
+Maintainer: RickMainer <przemsiedl@gmail.com>
+Build-Depends: debhelper-compat (= 13)
+Standards-Version: 4.6.0
+
+Package: openmediavault-btrfs-snap
+Architecture: all
+Depends: ${misc:Depends}, openmediavault (>= 6.0.0)
+Description: BTRFS snapshot plugin for OpenMediaVault
+ Simple snapshot management plugin.

@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/btrfssnap/create"
+  title: _("Create snapshot")
+  editing: false
+  notificationTitle: _("Snapshot created.")
+  component: omv-services-btrfssnap-create-form-page

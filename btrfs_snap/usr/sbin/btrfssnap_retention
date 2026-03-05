@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -eu
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "${SCRIPT_DIR}/btrfssnap_common"
+
+usage() {
+    echo "Usage: btrfssnap_retention get|set <positive_integer>" >&2
+    exit 1
+}
+
+cmd="${1:-}"
+case "${cmd}" in
+    get)
+        [ "$#" -eq 1 ] || usage
+        read_configured_retention
+        ;;
+    set)
+        [ "$#" -eq 2 ] || usage
+        limit="$(normalize_retention_limit "${2}")"
+        write_configured_retention "${limit}"
+        echo "${limit}"
+        ;;
+    *)
+        usage
+        ;;
+esac

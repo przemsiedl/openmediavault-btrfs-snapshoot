@@ -1,0 +1,46 @@
+#!/bin/bash
+
+set -eu
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "${SCRIPT_DIR}/btrfssnap_common"
+
+[ "$#" -eq 2 ] || fail "Usage: btrfssnap_mount <snapshot_path> <absolute_mount_dir>"
+
+snapshot_path="$(validate_managed_snapshot_path "${1}")"
+mount_dir="$(normalize_absolute_path "${2}")"
+btrfs_root="$(read_configured_root)"
+
+snapshot_exists="$(snapshot_exists_in_list "${btrfs_root}" "${snapshot_path}")"
+[ "${snapshot_exists:-}" = "1" ] || fail "Snapshot does not exist: ${snapshot_path}"
+
+if [ ! -d "${mount_dir}" ]; then
+    mkdir -p "${mount_dir}" || fail "Failed to create mount directory: ${mount_dir}"
+fi
+
+if mountpoint -q "${mount_dir}" 2>/dev/null; then
+    fail "Target directory is already a mountpoint: ${mount_dir}"
+fi
+
+existing_targets="$(get_snapshot_mount_targets "${btrfs_root}" "${snapshot_path}" | awk '!seen[$0]++')"
+if [ -n "${existing_targets}" ]; then
+    existing_targets_joined="$(echo "${existing_targets}" | awk 'BEGIN { first = 1 } { if (!first) printf(", "); printf("%s", $0); first = 0 } END { print "" }')"
+    fail "Snapshot is already mounted: ${existing_targets_joined}"
+fi
+
+device="$(get_btrfs_device_for_root "${btrfs_root}")"
+
+errors=""
+for opt in \
+    "ro,subvol=${snapshot_path}" \
+    "ro,subvol=/${snapshot_path}" \
+    "subvol=${snapshot_path}" \
+    "subvol=/${snapshot_path}"; do
+    if mount -t btrfs -o "${opt}" "${device}" "${mount_dir}" 2>/dev/null; then
+        echo "${mount_dir}"
+        exit 0
+    fi
+    errors="${errors}[${opt}] failed; "
+done
+
+fail "Failed to mount snapshot: ${errors}"
