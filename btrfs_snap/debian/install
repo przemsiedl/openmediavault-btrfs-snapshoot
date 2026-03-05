@@ -3,6 +3,7 @@ usr/share/openmediavault/workbench/route.d/services.btrfssnap.yaml usr/share/ope
 usr/share/openmediavault/workbench/route.d/services.btrfssnap.settings.yaml usr/share/openmediavault/workbench/route.d/
 usr/share/openmediavault/workbench/route.d/services.btrfssnap.mount.yaml usr/share/openmediavault/workbench/route.d/
 usr/share/openmediavault/workbench/route.d/services.btrfssnap.unmount.yaml usr/share/openmediavault/workbench/route.d/
+usr/share/openmediavault/workbench/route.d/services.btrfssnap.delete.yaml usr/share/openmediavault/workbench/route.d/
 usr/share/openmediavault/workbench/route.d/services.btrfssnap.create.yaml usr/share/openmediavault/workbench/route.d/
 usr/share/openmediavault/workbench/navigation.d/services.btrfssnap.yaml usr/share/openmediavault/workbench/navigation.d/
 usr/share/openmediavault/workbench/navigation.d/services.btrfssnap.settings.yaml usr/share/openmediavault/workbench/navigation.d/
@@ -10,6 +11,7 @@ usr/share/openmediavault/workbench/component.d/services.btrfssnap.yaml usr/share
 usr/share/openmediavault/workbench/component.d/services.btrfssnap.settings.yaml usr/share/openmediavault/workbench/component.d/
 usr/share/openmediavault/workbench/component.d/services.btrfssnap.mount.yaml usr/share/openmediavault/workbench/component.d/
 usr/share/openmediavault/workbench/component.d/services.btrfssnap.unmount.yaml usr/share/openmediavault/workbench/component.d/
+usr/share/openmediavault/workbench/component.d/services.btrfssnap.delete.yaml usr/share/openmediavault/workbench/component.d/
 usr/share/openmediavault/workbench/component.d/services.btrfssnap.create.yaml usr/share/openmediavault/workbench/component.d/
 etc/openmediavault/btrfssnap.conf etc/openmediavault/
 usr/sbin/btrfssnap_common usr/sbin/
@@ -17,5 +19,6 @@ usr/sbin/btrfssnap_root usr/sbin/
 usr/sbin/btrfssnap_list usr/sbin/
 usr/sbin/btrfssnap_mount usr/sbin/
 usr/sbin/btrfssnap_unmount usr/sbin/
+usr/sbin/btrfssnap_delete usr/sbin/
 usr/sbin/btrfssnap_retention usr/sbin/
 usr/sbin/btrfssnap_snapshot usr/sbin/

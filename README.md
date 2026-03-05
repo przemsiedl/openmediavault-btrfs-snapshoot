@@ -49,6 +49,7 @@ All commands are installed in `usr/sbin`:
 - `btrfssnap_list`
 - `btrfssnap_mount <snapshot_path> <absolute_mount_dir>`
 - `btrfssnap_unmount <snapshot_path>`
+- `btrfssnap_delete <snapshot_path>`
 - `btrfssnap_snapshot`
 
 ## Managed Snapshot Name Pattern
@@ -67,12 +68,12 @@ Snapshots that do not match this pattern are ignored by the plugin UI.
 Command:
 
 ```bash
-/usr/sbin/btrfssnap_snapshoot
+/usr/sbin/btrfssnap_snapshot
 ```
 
 Behavior:
 - temporarily mounts BTRFS top-level (`subvolid=5`),
-- creates a read-only snapshot from `base` to `vYYYYMMDD-HHMM`,
+- creates a read-only snapshot from configured `BTRFS_ROOT` to `vYYYYMMDD-HHMM`,
 - deletes oldest snapshots above `RETENTION_LIMIT`,
 - cleans up the temporary mount.
 
@@ -81,12 +82,12 @@ Behavior:
 To run snapshots automatically:
 
 1. Go to `System -> Scheduled Tasks -> Add -> Command`
-2. Command: `/usr/sbin/btrfssnap_snapshoot`
+2. Command: `/usr/sbin/btrfssnap_snapshot`
 3. User: `root`
 4. Choose a schedule and save.
 
 Example cron schedule (daily at 05:00):
 
 ```cron
-0 5 * * * /usr/sbin/btrfssnap_snapshoot
+0 5 * * * /usr/sbin/btrfssnap_snapshot
 ```

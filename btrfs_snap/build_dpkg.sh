@@ -12,6 +12,7 @@ chmod 755 usr/sbin/btrfssnap_root
 chmod 755 usr/sbin/btrfssnap_list
 chmod 755 usr/sbin/btrfssnap_mount
 chmod 755 usr/sbin/btrfssnap_unmount
+chmod 755 usr/sbin/btrfssnap_delete
 chmod 755 usr/sbin/btrfssnap_retention
 chmod 755 usr/sbin/btrfssnap_snapshot
 

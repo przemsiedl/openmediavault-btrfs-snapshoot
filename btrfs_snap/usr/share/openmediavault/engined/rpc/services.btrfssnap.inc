@@ -9,6 +9,7 @@ class BtrfsSnap extends \OMV\Rpc\ServiceAbstract
     private const CMD_LIST = "/usr/sbin/btrfssnap_list";
     private const CMD_MOUNT = "/usr/sbin/btrfssnap_mount";
     private const CMD_UNMOUNT = "/usr/sbin/btrfssnap_unmount";
+    private const CMD_DELETE = "/usr/sbin/btrfssnap_delete";
     private const CMD_RETENTION = "/usr/sbin/btrfssnap_retention";
     private const CMD_SNAPSHOT = "/usr/sbin/btrfssnap_snapshot";
     private const DEFAULT_RETENTION_LIMIT = 100;
@@ -133,6 +134,7 @@ class BtrfsSnap extends \OMV\Rpc\ServiceAbstract
         $this->registerMethod("createSnapshot");
         $this->registerMethod("mountSnapshot");
         $this->registerMethod("unmountSnapshot");
+        $this->registerMethod("deleteSnapshot");
     }
 
     public function getSnapshotList($params, $context)
@@ -290,6 +292,24 @@ class BtrfsSnap extends \OMV\Rpc\ServiceAbstract
         }
 
         $snapshotPath = $this->ensureManagedSnapshotPath($params["snapshot_path"]);
+        $deleteSnapshot = false;
+        if (isset($params["delete_snapshot"])) {
+            $deleteRaw = strtolower(trim((string) $params["delete_snapshot"]));
+            $deleteSnapshot = in_array($deleteRaw, ["1", "true", "yes", "on"], true);
+        }
+
+        if ($deleteSnapshot) {
+            $result = $this->executeCommand([self::CMD_DELETE, $snapshotPath]);
+            $deleted = 0;
+            if (!empty($result["output"])) {
+                $deleted = (int) trim((string) $result["output"][0]);
+            }
+            return [
+                "unmounted" => 0,
+                "deleted" => $deleted
+            ];
+        }
+
         $result = $this->executeCommand([self::CMD_UNMOUNT, $snapshotPath]);
         $unmounted = 0;
         if (!empty($result["output"])) {
@@ -297,7 +317,30 @@ class BtrfsSnap extends \OMV\Rpc\ServiceAbstract
         }
 
         return [
-            "unmounted" => $unmounted
+            "unmounted" => $unmounted,
+            "deleted" => 0
+        ];
+    }
+
+    public function deleteSnapshot($params, $context)
+    {
+        $this->validateMethodContext($context, [
+            "role" => OMV_ROLE_ADMINISTRATOR
+        ]);
+
+        if (!isset($params["snapshot_path"])) {
+            throw new Exception("Parameter 'snapshot_path' is required.");
+        }
+
+        $snapshotPath = $this->ensureManagedSnapshotPath($params["snapshot_path"]);
+        $result = $this->executeCommand([self::CMD_DELETE, $snapshotPath]);
+        $deleted = 0;
+        if (!empty($result["output"])) {
+            $deleted = (int) trim((string) $result["output"][0]);
+        }
+
+        return [
+            "deleted" => $deleted
         ];
     }
 }

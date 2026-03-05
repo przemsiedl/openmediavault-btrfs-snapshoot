@@ -1,0 +1,8 @@
+version: "1.0"
+type: route
+data:
+  url: "/services/btrfssnap/delete"
+  title: _("Delete snapshot")
+  editing: false
+  notificationTitle: _("Snapshot deleted.")
+  component: omv-services-btrfssnap-delete-form-page

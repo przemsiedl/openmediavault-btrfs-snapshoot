@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -eu
+(set -o pipefail 2>/dev/null) && set -o pipefail || true
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "${SCRIPT_DIR}/btrfssnap_common"
+
+[ "$#" -eq 1 ] || fail "Usage: btrfssnap_delete <snapshot_path>"
+
+snapshot_path="$(validate_managed_snapshot_path "${1}")"
+btrfs_root="$(read_configured_root)"
+assert_btrfs_filesystem_target "${btrfs_root}"
+
+targets="$(get_snapshot_mount_targets "${btrfs_root}" "${snapshot_path}" | awk '!seen[$0]++')"
+if [ -n "${targets}" ]; then
+    targets_joined="$(echo "${targets}" | awk 'BEGIN { first = 1 } { if (!first) printf(", "); printf("%s", $0); first = 0 } END { print "" }')"
+    fail "Snapshot is mounted. Unmount before delete: ${targets_joined}"
+fi
+
+snapshot_exists="$(snapshot_exists_in_list "${btrfs_root}" "${snapshot_path}")"
+[ "${snapshot_exists:-}" = "1" ] || fail "Snapshot does not exist: ${snapshot_path}"
+
+mnt_tmp="$(mktemp -d /tmp/btrfssnap-delete.XXXXXX)"
+mounted="0"
+
+cleanup() {
+    if [ "${mounted}" = "1" ] && mountpoint -q "${mnt_tmp}" 2>/dev/null; then
+        umount "${mnt_tmp}" >/dev/null 2>&1 || true
+    fi
+    rmdir "${mnt_tmp}" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+mount_btrfs_top_level_for_root "${btrfs_root}" "${mnt_tmp}"
+mounted="1"
+
+target_subvolume="${mnt_tmp}/${snapshot_path}"
+[ -d "${target_subvolume}" ] || fail "Snapshot directory does not exist: ${snapshot_path}"
+
+run_or_fail btrfs subvolume delete "${target_subvolume}"
+echo "1"

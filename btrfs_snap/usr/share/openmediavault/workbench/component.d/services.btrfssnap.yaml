@@ -68,6 +68,19 @@ data:
           type: url
           url: "/services/btrfssnap/unmount?snapshot_name={{ name }}&snapshot_path={{ path }}&mount_dir={{ mount_dir }}"
       - type: iconButton
+        icon: delete
+        tooltip: _("Delete snapshot")
+        enabledConstraints:
+          minSelected: 1
+          maxSelected: 1
+          constraint:
+            - operator: falsy
+              arg0:
+                prop: is_mounted
+        execute:
+          type: url
+          url: "/services/btrfssnap/delete?snapshot_name={{ name }}&snapshot_path={{ path }}&mount_dir={{ mount_dir }}"
+      - type: iconButton
         icon: settings
         tooltip: _("Snapshot root path settings")
         execute:
