@@ -12,19 +12,19 @@ data:
     fields:
       - type: paragraph
         title: _("Create snapshot")
-        text: _("Create a new read-only snapshot from 'base'.")
+        text: _("Create a new read-only snapshot from the configured BTRFS_ROOT subvolume.")
       - type: paragraph
         title: _("Scheduled snapshots")
       - type: textInput
         name: schedule_command
         label: _("Command")
-        value: "/usr/sbin/btrfssnap_snapshoot"
+        value: "/usr/sbin/btrfssnap_snapshot"
         readonly: true
         submitValue: false
       - type: textInput
         name: schedule_example
         label: _("Cron example (daily 05:00)")
-        value: "0 5 * * * /usr/sbin/btrfssnap_snapshoot"
+        value: "0 5 * * * /usr/sbin/btrfssnap_snapshot"
         readonly: true
         submitValue: false
       - type: textInput

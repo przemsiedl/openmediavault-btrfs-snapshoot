@@ -9,6 +9,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 
 snapshot_path="$(validate_managed_snapshot_path "${1}")"
 btrfs_root="$(read_configured_root)"
+assert_btrfs_filesystem_target "${btrfs_root}"
 
 targets="$(get_snapshot_mount_targets "${btrfs_root}" "${snapshot_path}" | awk '!seen[$0]++')"
 [ -n "${targets}" ] || fail "Snapshot is not mounted."

@@ -49,7 +49,7 @@ All commands are installed in `usr/sbin`:
 - `btrfssnap_list`
 - `btrfssnap_mount <snapshot_path> <absolute_mount_dir>`
 - `btrfssnap_unmount <snapshot_path>`
-- `btrfssnap_snapshoot`
+- `btrfssnap_snapshot`
 
 ## Managed Snapshot Name Pattern
 

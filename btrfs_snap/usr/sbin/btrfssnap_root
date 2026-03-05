@@ -20,6 +20,7 @@ case "${cmd}" in
         [ "$#" -eq 2 ] || usage
         root_path="$(normalize_absolute_path "${2}")"
         [ -d "${root_path}" ] || fail "Selected directory does not exist: ${root_path}"
+        assert_btrfs_filesystem_target "${root_path}"
         write_configured_root "${root_path}"
         echo "${root_path}"
         ;;

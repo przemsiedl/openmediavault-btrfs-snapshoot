@@ -10,6 +10,19 @@ fail() {
     exit 1
 }
 
+run_or_fail() {
+    "$@" || fail "Command failed: $*"
+}
+
+assert_btrfs_filesystem_target() {
+    local target="${1:-}"
+    local fstype
+    fstype="$(findmnt -n -o FSTYPE --target "${target}" 2>/dev/null)" || fail "Failed to inspect filesystem type for: ${target}"
+    fstype="$(printf '%s\n' "${fstype}" | sed -n '1p')"
+    [ -n "${fstype}" ] || fail "Failed to inspect filesystem type for: ${target}"
+    [ "${fstype}" = "btrfs" ] || fail "Configured path is not on a BTRFS filesystem: ${target}"
+}
+
 normalize_absolute_path() {
     local input="${1:-}"
     input="$(echo "${input}" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
@@ -148,10 +161,59 @@ write_configured_retention() {
 get_btrfs_device_for_root() {
     local btrfs_root="${1:-}"
     local device
-    device="$(findmnt -rn -T "${btrfs_root}" -o SOURCE 2>/dev/null | sed -n '1p')"
+    device="$(findmnt -rn -T "${btrfs_root}" -o SOURCE 2>/dev/null)" || fail "Failed to detect BTRFS source device."
+    device="$(printf '%s\n' "${device}" | sed -n '1p')"
     [ -n "${device}" ] || fail "Failed to detect BTRFS source device."
     device="$(echo "${device}" | sed -E 's/^(.+)\[[^]]+\]$/\1/')"
     printf '%s\n' "${device}"
+}
+
+mount_btrfs_top_level_for_root() {
+    local btrfs_root="${1:-}"
+    local mount_dir="${2:-}"
+    [ -n "${mount_dir}" ] || fail "Mount directory is required."
+    assert_btrfs_filesystem_target "${btrfs_root}"
+    local device
+    device="$(get_btrfs_device_for_root "${btrfs_root}")"
+    run_or_fail mount -t btrfs -o subvolid=5 "${device}" "${mount_dir}"
+}
+
+get_btrfs_subvolume_path_for_root() {
+    local btrfs_root="${1:-}"
+    local subvol_path
+    local mount_options
+
+    subvol_path="$(
+        btrfs subvolume show "${btrfs_root}" 2>/dev/null \
+            | awk -F': *' '
+                /^Path:/ { print $2; exit }
+                /^Name:/ && name == "" { name = $2 }
+                END {
+                    if (name != "" && name != "<FS_TREE>" && name != "5") {
+                        print name
+                    }
+                }
+            '
+    )" || subvol_path=""
+
+    if [ -z "${subvol_path}" ]; then
+        mount_options="$(findmnt -rn -T "${btrfs_root}" -o OPTIONS 2>/dev/null)" || fail "Failed to inspect mount options for: ${btrfs_root}"
+        mount_options="$(printf '%s\n' "${mount_options}" | sed -n '1p')"
+        if [ -n "${mount_options}" ]; then
+            subvol_path="$(
+                printf '%s\n' "${mount_options}" \
+                    | tr ',' '\n' \
+                    | sed -n 's/^subvol=//p' \
+                    | sed -n '1p'
+            )"
+        fi
+        if [[ "${mount_options}" == *"subvolid=5"* ]] && [ -z "${subvol_path}" ]; then
+            subvol_path=""
+        fi
+    fi
+
+    subvol_path="${subvol_path#/}"
+    printf '%s\n' "${subvol_path}"
 }
 
 get_mount_targets_for_source() {
@@ -188,13 +250,40 @@ get_snapshot_mount_targets() {
 }
 
 snapshot_exists_in_list() {
-    local btrfs_root="${1:-}"
-    local snapshot_path="${2:-}"
-    btrfs subvolume list "${btrfs_root}" 2>/dev/null | sed -n 's/^.* path //p' | while IFS= read -r p; do
-        p="${p#/}"
-        if [ "${p}" = "${snapshot_path}" ]; then
+    (
+        local btrfs_root="${1:-}"
+        local snapshot_path="${2:-}"
+        local mnt_tmp
+        local mounted="0"
+        local found="0"
+
+        mnt_tmp="$(mktemp -d /tmp/btrfssnap-list.XXXXXX)" || fail "Failed to create temporary directory."
+        cleanup_snapshot_exists_tmp() {
+            if [ "${mounted}" = "1" ] && mountpoint -q "${mnt_tmp}" 2>/dev/null; then
+                umount "${mnt_tmp}" >/dev/null 2>&1 || true
+            fi
+            rmdir "${mnt_tmp}" >/dev/null 2>&1 || true
+        }
+        trap cleanup_snapshot_exists_tmp EXIT
+
+        mount_btrfs_top_level_for_root "${btrfs_root}" "${mnt_tmp}"
+        mounted="1"
+
+        local subvolume_list
+        subvolume_list="$(btrfs subvolume list "${mnt_tmp}" 2>/dev/null)" || fail "Failed to list BTRFS subvolumes."
+        while IFS= read -r p; do
+            [ -n "${p}" ] || continue
+            p="$(printf '%s\n' "${p}" | sed -n 's/^.* path //p')"
+            [ -n "${p}" ] || continue
+            p="${p#/}"
+            if [ "${p}" = "${snapshot_path}" ]; then
+                found="1"
+                break
+            fi
+        done < <(printf '%s\n' "${subvolume_list}")
+
+        if [ "${found}" = "1" ]; then
             printf '1\n'
-            return 0
         fi
-    done
+    )
 }

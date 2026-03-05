@@ -18,4 +18,4 @@ usr/sbin/btrfssnap_list usr/sbin/
 usr/sbin/btrfssnap_mount usr/sbin/
 usr/sbin/btrfssnap_unmount usr/sbin/
 usr/sbin/btrfssnap_retention usr/sbin/
-usr/sbin/btrfssnap_snapshoot usr/sbin/
+usr/sbin/btrfssnap_snapshot usr/sbin/

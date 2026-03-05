@@ -10,6 +10,7 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 snapshot_path="$(validate_managed_snapshot_path "${1}")"
 mount_dir="$(normalize_absolute_path "${2}")"
 btrfs_root="$(read_configured_root)"
+assert_btrfs_filesystem_target "${btrfs_root}"
 
 snapshot_exists="$(snapshot_exists_in_list "${btrfs_root}" "${snapshot_path}")"
 [ "${snapshot_exists:-}" = "1" ] || fail "Snapshot does not exist: ${snapshot_path}"

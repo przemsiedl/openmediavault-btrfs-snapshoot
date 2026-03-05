@@ -10,7 +10,7 @@ class BtrfsSnap extends \OMV\Rpc\ServiceAbstract
     private const CMD_MOUNT = "/usr/sbin/btrfssnap_mount";
     private const CMD_UNMOUNT = "/usr/sbin/btrfssnap_unmount";
     private const CMD_RETENTION = "/usr/sbin/btrfssnap_retention";
-    private const CMD_SNAPSHOOT = "/usr/sbin/btrfssnap_snapshoot";
+    private const CMD_SNAPSHOT = "/usr/sbin/btrfssnap_snapshot";
     private const DEFAULT_RETENTION_LIMIT = 100;
 
     private function normalizeRootRelativePath($path)
@@ -236,7 +236,7 @@ class BtrfsSnap extends \OMV\Rpc\ServiceAbstract
             "role" => OMV_ROLE_ADMINISTRATOR
         ]);
 
-        $result = $this->executeCommand([self::CMD_SNAPSHOOT]);
+        $result = $this->executeCommand([self::CMD_SNAPSHOT]);
         $snapshotName = "";
         if (!empty($result["output"])) {
             $snapshotName = trim((string) $result["output"][0]);

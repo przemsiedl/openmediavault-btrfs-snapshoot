@@ -8,8 +8,24 @@ SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 [ "$#" -eq 0 ] || fail "Usage: btrfssnap_list"
 
 btrfs_root="$(read_configured_root)"
+assert_btrfs_filesystem_target "${btrfs_root}"
 
-btrfs subvolume list "${btrfs_root}" 2>/dev/null | while IFS= read -r line; do
+mnt_tmp="$(mktemp -d /tmp/btrfssnap-list.XXXXXX)"
+mounted="0"
+
+cleanup() {
+    if [ "${mounted}" = "1" ] && mountpoint -q "${mnt_tmp}" 2>/dev/null; then
+        umount "${mnt_tmp}" >/dev/null 2>&1 || true
+    fi
+    rmdir "${mnt_tmp}" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+mount_btrfs_top_level_for_root "${btrfs_root}" "${mnt_tmp}"
+mounted="1"
+
+subvolume_list="$(btrfs subvolume list "${mnt_tmp}" 2>/dev/null)" || fail "Failed to list BTRFS subvolumes."
+while IFS= read -r line; do
     relative_path="$(echo "${line}" | sed -n 's/^.* path //p')"
     [ -n "${relative_path}" ] || continue
     relative_path="${relative_path#/}"
@@ -30,4 +46,4 @@ btrfs subvolume list "${btrfs_root}" 2>/dev/null | while IFS= read -r line; do
     fi
 
     printf '%s\t%s\t%s\t%s\n' "${name}" "${relative_path}" "${is_mounted}" "${targets}"
-done
+done < <(printf '%s\n' "${subvolume_list}")

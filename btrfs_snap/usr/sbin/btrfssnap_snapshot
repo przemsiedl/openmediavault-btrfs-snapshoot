@@ -1,0 +1,66 @@
+#!/bin/bash
+
+set -eu
+(set -o pipefail 2>/dev/null) && set -o pipefail || true
+
+SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+. "${SCRIPT_DIR}/btrfssnap_common"
+
+[ "$#" -eq 0 ] || fail "Usage: btrfssnap_snapshot"
+
+exec 9>/var/lock/btrfssnap.lock || fail "Failed to open lock file: /var/lock/btrfssnap.lock"
+flock -n 9 || fail "Snapshot already running."
+
+btrfs_root="$(read_configured_root)"
+retention_limit="$(read_configured_retention)"
+assert_btrfs_filesystem_target "${btrfs_root}"
+
+mnt_tmp="$(mktemp -d /tmp/btrfssnap-root.XXXXXX)"
+mounted="0"
+
+cleanup() {
+    if [ "${mounted}" = "1" ] && mountpoint -q "${mnt_tmp}" 2>/dev/null; then
+        umount "${mnt_tmp}" >/dev/null 2>&1 || true
+    fi
+    rmdir "${mnt_tmp}" >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+
+mount_btrfs_top_level_for_root "${btrfs_root}" "${mnt_tmp}"
+mounted="1"
+
+subvol_path="$(get_btrfs_subvolume_path_for_root "${btrfs_root}")"
+source_subvolume="${mnt_tmp}"
+if [ -n "${subvol_path}" ]; then
+    source_subvolume="${mnt_tmp}/${subvol_path}"
+fi
+
+[ -d "${source_subvolume}" ] || fail "Source subvolume does not exist: ${source_subvolume}"
+
+timestamp="v$(date +%Y%m%d-%H%M)"
+target_subvolume="${mnt_tmp}/${timestamp}"
+run_or_fail btrfs subvolume snapshot -r "${source_subvolume}" "${target_subvolume}"
+
+mapfile -t snapshots < <(
+    shopt -s nullglob
+    for snap in "${mnt_tmp}"/v????????-????; do
+        [ -d "${snap}" ] || continue
+        snap_name="$(basename "${snap}")"
+        if is_managed_snapshot_name "${snap_name}"; then
+            printf '%s\n' "${snap}"
+        fi
+    done | sort -V
+)
+
+count="${#snapshots[@]}"
+if [ "${count}" -gt "${retention_limit}" ]; then
+    remove_count=$((count - retention_limit))
+    if [ "${remove_count}" -ge "${count}" ]; then
+        remove_count=$((count - 1))
+    fi
+    for ((i = 0; i < remove_count; i++)); do
+        run_or_fail btrfs subvolume delete "${snapshots[$i]}"
+    done
+fi
+
+echo "${timestamp}"
