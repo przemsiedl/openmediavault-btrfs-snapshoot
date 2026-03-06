@@ -1,4 +1,4 @@
-# openmediavault-btrfs-snap
+# ASUSTOR compatibile openmediavault-btrfs-snap
 
 An OpenMediaVault plugin for managing BTRFS snapshots:
 - listing snapshots,
